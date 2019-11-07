@@ -156,34 +156,89 @@ app.post('/home/pick_color', function(req, res) {
 });
 
 app.get('/team_stats', function(req, res) {
-	var total_games = 'select count(*) from football_games;';
-  var total_wins = 'select count(*) from football_games where home_score > visitor_score;';
-  var total_losses = 'select count(*) from football_games where visitor_score > home_score;';
+	var  all_games = 'select * from football_games;';
+	var  num_wins =  'select count(*) from football_games where home_score > visitor_score;';
+	var  num_losses = 'select count(*) from football_games where home_score < visitor_score;';
 	db.task('get-everything', task => {
-    return task.batch([
-      task.any(total_games),
-      task.any(total_wins),
-      task.any(total_losses)
-    ]);
-  })
-  .then(data => {
-    res.render('pages/team_stats',{
-      my_title: "Team Stats",
-      result_1: data[0],
-      result_2: data[1],
-      result_3: data[2]
+        return task.batch([
+            task.any(all_games),
+            task.any(num_wins),
+            task.any(num_losses)
+        ]);
     })
-  })
-  .catch(error => {
-    console.log('error', error);
-    res.render('pages/team_stats', {
-      my_title: "Team Stats",
-      result_1: '',
-      result_2: '',
-      result_3: ''
+    .then(info => {
+    	res.render('pages/team_stats',{
+				my_title: "Team Stats Page",
+				game_data: info[0],
+				tot_wins: info[1][0].count,
+				tot_losses: info[2][0].count
+			})
     })
-  });
+    .catch(error => {
+        // display error message in case an error
+            console.log('error', error);//if this doesn't work for you replace with console.log
+            res.render('pages/team_stats', {
+                title: 'Team Stats Page',
+                data: '',
+                color: '',
+                color_msg: ''
+            })
+    });
+
 });
+
+app.get('/player_info', function(req, res) {
+	var all_players = 'select id, name from football_players;';
+	db.any(all_players)
+        .then(function (rows) {
+            res.render('pages/player_info',{
+				          my_title: 'Player Info',
+				          all_player_data: rows
+			      })
+        })
+        .catch(function (err) {
+            console.log('error',err);
+            res.render('pages/home', {
+                title: 'Player Info',
+                all_player_data: ''
+            })
+        })
+});
+
+app.get('/player_info/select_player', function(req, res) {
+  var idPlayer = req.query.player_choice;
+	var  all_players = 'select id, name from football_players;';
+	var  spec_player =  "select * from football_players where id = '" + idPlayer + "';";
+	var  player_games = "select count(*) from football_games where '" + idPlayer + "' = any (players);";
+	db.task('get-everything', task => {
+        return task.batch([
+            task.any(all_players),
+            task.any(spec_player),
+            task.any(player_games)
+        ]);
+    })
+    .then(info => {
+    	res.render('pages/player_info',{
+				my_title: 'Player Info',
+				all_player_data: info[0],
+				spec_player_data: info[1][0],
+				total_gp: info[2][0].count
+			})
+    })
+    .catch(error => {
+        // display error message in case an error
+            console.log('error', error);//if this doesn't work for you replace with console.log
+            res.render('pages/player_info', {
+                my_title: 'Player Info',
+                all_player_data: '',
+                spec_player_data: '',
+                total_gp: ''
+            })
+    });
+
+});
+
+
 
 /*********************************
 
